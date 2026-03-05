@@ -1,10 +1,9 @@
-// الـ model بتاع كل session بتتسجل
 class SessionRecord {
   final String task;
   final int durationSeconds;
   final DateTime completedAt;
-  final bool completed; // false لو الuser وقف قبل ما الوقت يخلص
-
+  final bool completed; 
+  
   SessionRecord({
     required this.task,
     required this.durationSeconds,
@@ -12,7 +11,6 @@ class SessionRecord {
     required this.completed,
   });
 
-  // بدل ما نكتر حسابات في الـ UI
   String get durationLabel => '${durationSeconds ~/ 60}m';
 
   String get timeLabel {
