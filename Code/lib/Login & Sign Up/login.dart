@@ -11,46 +11,60 @@ class LoginUI extends StatefulWidget {
 }
 
 class _LoginUIState extends State<LoginUI> {
-  TextEditingController emailController = TextEditingController();
-  TextEditingController passwordController = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  bool isLoading = false;
 
+  // ================== منطق تسجيل الدخول ==================
   Future<void> loginUser() async {
-    final prefs = await SharedPreferences.getInstance();
+    if (!_formKey.currentState!.validate()) return;
 
+    setState(() => isLoading = true);
+
+    final prefs = await SharedPreferences.getInstance();
     String? usersString = prefs.getString("users");
 
     if (usersString == null) {
-      _showError("No users found");
+      _showError("لا يوجد مستخدمين مسجلين. قم بإنشاء حساب أولاً.");
+      setState(() => isLoading = false);
       return;
     }
 
     List users = jsonDecode(usersString);
-
     String email = emailController.text.trim();
     String password = passwordController.text.trim();
 
-    bool found = false;
+    Map<String, dynamic>? foundUser;
 
+    // البحث عن المستخدم في القائمة المحفوظة
     for (var user in users) {
       if (user["email"] == email && user["password"] == password) {
-        found = true;
+        foundUser = user;
         break;
       }
     }
 
-    if (found) {
+    if (foundUser != null) {
+      // حفظ بيانات المستخدم الحالي لتعرض في صفحة الإعدادات
+      await prefs.setString('current_user_name', foundUser["name"]);
+      await prefs.setString('current_user_email', foundUser["email"]);
+
+      // الانتقال للصفحة الرئيسية
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) =>  HomeScreen()),
+        MaterialPageRoute(builder: (_) => HomeScreen()),
       );
     } else {
-      _showError("Invalid email or password");
+      _showError("Error In Your Enters");
     }
+
+    setState(() => isLoading = false);
   }
 
   void _showError(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg)),
+      SnackBar(content: Text(msg), backgroundColor: Colors.red),
     );
   }
 
@@ -58,154 +72,122 @@ class _LoginUIState extends State<LoginUI> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
+        height: double.infinity,
         decoration: const BoxDecoration(
           gradient: LinearGradient(
-            colors: [Color(0xFF0F3D2E), Color(0xFF0B2A21)],
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
+            colors: [Color(0xFF0E3B2E), Color(0xFF06281F)],
           ),
         ),
-        child: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Form(
+            key: _formKey,
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const SizedBox(height: 10),
-
-                Container(
-                  width: 260,
-                  height: 260,
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.circular(20),
+                const SizedBox(height: 70),
+                // اللوجو المربع
+                Center(
+                  child: Container(
+                    width: 130,
+                    height: 130,
+                    decoration: BoxDecoration(
+                      color: Colors.black,
+                      borderRadius: BorderRadius.circular(24),
+                    ),
+                    child: const Icon(Icons.bolt,
+                        color: Color(0xFF2EE07D), size: 60),
                   ),
                 ),
-
-                const SizedBox(height: 34),
-
-                const Text(
-                  "Focus & Thrive",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 28,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
+                const SizedBox(height: 30),
+                const Center(
+                  child: Text(
+                    "Welcome Back",
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold),
                   ),
                 ),
+                const SizedBox(height: 40),
 
-                const SizedBox(height: 8),
-
-                Text(
-                  "Your journey to a better lifestyle starts here.",
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: Colors.grey.shade400,
-                    fontSize: 14,
-                  ),
+                // حقل الإيميل
+                buildField(
+                  label: "EMAIL ADDRESS",
+                  controller: emailController,
+                  hint: "name@example.com",
+                  icon: Icons.email_outlined,
+                  validator: (v) => v!.isEmpty || !v.contains("@")
+                      ? "your email not currect"
+                      : null,
                 ),
-
-                const SizedBox(height: 38),
-
-                _label("EMAIL ADDRESS"),
-                const SizedBox(height: 8),
-                _inputField(Icons.email_outlined, "name@example.com",
-                    controller: emailController),
-
                 const SizedBox(height: 20),
 
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: const [
-                    _LabelText("PASSWORD"),
-                    Text(
-                      "Forgot?",
-                      style: TextStyle(
-                        color: Color(0xFF3BE27A),
-                        fontSize: 13,
-                      ),
-                    )
-                  ],
+                // حقل الباسورد
+                buildField(
+                  label: "PASSWORD",
+                  controller: passwordController,
+                  hint: "••••••••",
+                  icon: Icons.lock_outline,
+                  obscure: true,
+                  validator: (v) => v!.isEmpty ? "enter your password" : null,
                 ),
 
-                const SizedBox(height: 8),
-                _inputField(Icons.lock_outline, "••••••••",
-                    isPassword: true, controller: passwordController),
+                const SizedBox(height: 30),
 
-                const SizedBox(height: 36),
-
+                // زر تسجيل الدخول مع حالة التحميل
                 SizedBox(
                   width: double.infinity,
-                  height: 56,
+                  height: 55,
                   child: ElevatedButton(
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3BE27A),
+                      backgroundColor: const Color(0xFF2EE07D),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
+                          borderRadius: BorderRadius.circular(16)),
                     ),
-                    onPressed: loginUser,
-                    child: const Text(
-                      "Sign In",
-                      style: TextStyle(
-                        color: Colors.black,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                    onPressed: isLoading ? null : loginUser,
+                    child: isLoading
+                        ? const CircularProgressIndicator(color: Colors.black)
+                        : const Text(
+                            "Sign In",
+                            style: TextStyle(
+                                color: Colors.black,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold),
+                          ),
+                  ),
+                ),
+
+                const SizedBox(height: 30),
+
+                // قسم السوشيال ميديا
+                buildSocialSection(),
+
+                const SizedBox(height: 30),
+
+                // رابط التسجيل
+                Center(
+                  child: InkWell(
+                    onTap: () => Navigator.pop(context),
+                    child: const Text.rich(
+                      TextSpan(
+                        text: "Don't have an account? ",
+                        style: TextStyle(color: Colors.white70),
+                        children: [
+                          TextSpan(
+                            text: "Sign Up",
+                            style: TextStyle(
+                                color: Color(0xFF2EE07D),
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-
-                const SizedBox(height: 34),
-
-                Row(
-                  children: [
-                    Expanded(child: Divider(color: Colors.grey.shade800)),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(
-                        "OR CONTINUE WITH",
-                        style: TextStyle(
-                          color: Colors.grey.shade500,
-                          fontSize: 12,
-                          letterSpacing: 1,
-                        ),
-                      ),
-                    ),
-                    Expanded(child: Divider(color: Colors.grey.shade800)),
-                  ],
-                ),
-
-                const SizedBox(height: 22),
-
-                Row(
-                  children: [
-                    Expanded(child: _socialButton(Icons.g_mobiledata, "Google")),
-                    const SizedBox(width: 14),
-                    Expanded(child: _socialButton(Icons.apple, "Apple")),
-                  ],
-                ),
-
-                const SizedBox(height: 28),
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Text(
-                      "Don't have an account? ",
-                      style: TextStyle(color: Colors.white70),
-                    ),
-                    Text(
-                      "Sign up",
-                      style: TextStyle(
-                        color: Color(0xFF3BE27A),
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 10),
+                const SizedBox(height: 20),
               ],
             ),
           ),
@@ -214,75 +196,95 @@ class _LoginUIState extends State<LoginUI> {
     );
   }
 
-  Widget _label(String text) => Align(
-        alignment: Alignment.centerLeft,
-        child: Padding(
-          padding: const EdgeInsets.only(left: 2),
-          child: Text(
-            text,
-            style: TextStyle(
-              color: Colors.grey.shade500,
-              fontSize: 12,
-              letterSpacing: 1,
+  // ميثود بناء الحقول
+  Widget buildField({
+    required String label,
+    required TextEditingController controller,
+    required String hint,
+    required IconData icon,
+    bool obscure = false,
+    required String? Function(String?) validator,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label,
+            style: const TextStyle(color: Colors.white70, fontSize: 12)),
+        const SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.08),
+            borderRadius: BorderRadius.circular(16),
+          ),
+          child: TextFormField(
+            controller: controller,
+            obscureText: obscure,
+            validator: validator,
+            style: const TextStyle(color: Colors.white),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: const TextStyle(color: Colors.white54),
+              prefixIcon: Icon(icon, color: Colors.white70),
+              border: InputBorder.none,
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
             ),
           ),
         ),
-      );
+      ],
+    );
+  }
 
-  Widget _inputField(IconData icon, String hint,
-      {bool isPassword = false, TextEditingController? controller}) {
-    return TextField(
-      controller: controller,
-      obscureText: isPassword,
-      decoration: InputDecoration(
-        hintText: hint,
-        hintStyle: TextStyle(color: Colors.grey.shade500),
-        prefixIcon: Icon(icon, color: Colors.grey.shade400),
-        filled: true,
-        fillColor: const Color(0xFF123D31),
-        contentPadding: const EdgeInsets.symmetric(vertical: 18),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide.none,
+  // ميثود السوشيال ميديا
+  Widget buildSocialSection() {
+    return Column(
+      children: [
+        Row(
+          children: [
+            Expanded(child: Divider(color: Colors.white.withOpacity(0.3))),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 10),
+              child: Text("Or sign in with",
+                  style: TextStyle(color: Colors.white70)),
+            ),
+            Expanded(child: Divider(color: Colors.white.withOpacity(0.3))),
+          ],
         ),
-      ),
+        const SizedBox(height: 20),
+        Row(
+          children: [
+            Expanded(
+                child: socialButton(icon: Icons.g_mobiledata, text: "Google")),
+            const SizedBox(width: 16),
+            Expanded(child: socialButton(icon: Icons.apple, text: "Apple")),
+          ],
+        ),
+      ],
     );
   }
 
-  Widget _socialButton(IconData icon, String text) {
-    return Container(
-      height: 54,
-      decoration: BoxDecoration(
-        color: const Color(0xFF123D31),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(icon, color: Colors.white70),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            style: const TextStyle(color: Colors.white),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LabelText extends StatelessWidget {
-  final String text;
-  const _LabelText(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: TextStyle(
-        color: Colors.grey.shade500,
-        fontSize: 12,
-        letterSpacing: 1,
+  Widget socialButton({required IconData icon, required String text}) {
+    return InkWell(
+      onTap: () {
+        // هنا يمكنك إضافة منطق Google Sign In الفعلي لاحقاً
+      },
+      child: Container(
+        height: 55,
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.08),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: Colors.white, size: 30),
+            const SizedBox(width: 8),
+            Text(text,
+                style: const TextStyle(
+                    color: Colors.white, fontWeight: FontWeight.w500)),
+          ],
+        ),
       ),
     );
   }

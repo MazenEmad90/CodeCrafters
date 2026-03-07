@@ -1,141 +1,129 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:smart_life_organizer/Login%20&%20Sign%20Up/login.dart';
 
-/// Settings screen showing profile, account, preferences, integrations and support.
-/// StatelessWidget because current implementation holds no mutable state.
-class SettingsScreen extends StatelessWidget {
+class SettingsScreen extends StatefulWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  State<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends State<SettingsScreen> {
+  String userName = "Loading...";
+  String userEmail = "...";
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  Future<void> _loadUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      userName = prefs.getString('current_user_name') ?? "Guest User";
+      userEmail = prefs.getString('current_user_email') ?? "No Email Found";
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Background for the entire screen
-      backgroundColor: Color(0xFF0E2214),
+      backgroundColor: const Color(0xFF0E2214), // نفس لون الخلفية في التصميم
       appBar: AppBar(
-        // Transparent ARGB color (alpha = 0) — effectively no AppBar background color
-        backgroundColor: const Color.fromARGB(0, 201, 162, 162),
-        elevation: 10,
-        title: Text('Settings',
-            style: TextStyle(
-                color: Colors.black87,
-                fontWeight: FontWeight.bold,
-                fontSize: 30)),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text('Settings', 
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 24)),
       ),
       body: ListView(
-        padding: EdgeInsets.all(20),
+        padding: const EdgeInsets.all(20),
         children: [
           // Profile Section
           Row(
             children: [
-              CircleAvatar(
-                radius: 30,
-                // Local asset used as avatar placeholder
-                backgroundImage:
-                    AssetImage('assets/onboarding3.jpg'), // صورة رمزية
+              const CircleAvatar(
+                radius: 35,
+                backgroundColor: Color(0xFF2EE07D),
+                child: Icon(Icons.person, color: Colors.black, size: 40),
               ),
-              SizedBox(width: 16),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Display name
-                    Text('Alex Thompson',
-                        style: TextStyle(color: Colors.white, fontSize: 18)),
-                    // Edit profile action (no implementation yet)
-                    TextButton(
-                      onPressed:
-                          () {}, // TODO: implement edit profile navigation
-                      child: Text('Edit Profile'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: Colors.greenAccent,
-                        padding: EdgeInsets.zero,
-                        minimumSize: Size(50, 30),
-                        // Shrink tap target to fit the layout
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                    ),
+                    Text(userName, 
+                        style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                    const Text('Edit Profile', 
+                        style: TextStyle(color: Color(0xFF2EE07D), fontSize: 14)),
                   ],
                 ),
               ),
             ],
           ),
-          SizedBox(height: 20),
-          Divider(color: Colors.white24),
+          const SizedBox(height: 25),
+          const Divider(color: Colors.white12),
 
-          // Account Section
           _sectionTitle('Account'),
           _settingTile('Manage Subscription', 'Pro Plan Active'),
-          _settingTile('Email Address', 'alex.t@productivity.io'),
+          _settingTile('Email Address', userEmail),
 
-          // Preferences Section
           _sectionTitle('Preferences'),
-          _switchTile('Dark Mode', true), // Example switch (no state)
-          _settingTile('Notifications', ''),
+          _switchTile('Dark Mode', true),
+          _settingTile('Notifications', 'On'),
 
-          // Integrations Section
           _sectionTitle('Integrations'),
           _settingTile('Calendar Sync', 'Connected'),
-          _settingTile('Health App', 'Disconnected'),
 
-          // Support Section
-          _sectionTitle('Support'),
-          _settingTile('FAQ', ''),
-          _settingTile('Help Center', ''),
+          const SizedBox(height: 40),
 
-          SizedBox(height: 30),
-
-          // Logout Button (action not implemented)
+          // Log Out Button
           ElevatedButton(
-            onPressed: () {}, // TODO: add logout logic
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('current_user_name');
+              await prefs.remove('current_user_email');
+              
+              Navigator.pushAndRemoveUntil(
+                context, 
+                MaterialPageRoute(builder: (_) => const LoginUI()), 
+                (route) => false
+              );
+            },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              padding: EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10),
-              ),
+              backgroundColor: Colors.redAccent,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
-            child:
-                Text('Log Out', style: TextStyle(fontWeight: FontWeight.bold)),
-          ),
-
-          SizedBox(height: 12),
-          Center(
-            child: Text(
-              'VERSION 2.4.0 (BUILD 102)',
-              style: TextStyle(color: Colors.white38, fontSize: 12),
-            ),
+            child: const Text('Log Out', 
+              style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 16)),
           ),
         ],
       ),
     );
   }
 
-  /// Widget for section titles (Account, Preferences, etc.)
   Widget _sectionTitle(String title) => Padding(
-        padding: const EdgeInsets.only(top: 20, bottom: 8),
+        padding: const EdgeInsets.only(top: 25, bottom: 10),
         child: Text(
           title,
-          style: TextStyle(
-              color: Colors.greenAccent,
-              fontSize: 16,
-              fontWeight: FontWeight.bold),
+          style: const TextStyle(color: Color(0xFF2EE07D), fontSize: 16, fontWeight: FontWeight.bold),
         ),
       );
 
-  /// Reusable ListTile for simple settings rows.
-  /// If subtitle is empty, no subtitle is shown.
   Widget _settingTile(String title, String subtitle) => ListTile(
-        title: Text(title, style: TextStyle(color: Colors.white)),
-        subtitle: subtitle.isNotEmpty
-            ? Text(subtitle, style: TextStyle(color: Colors.white70))
-            : null,
-        trailing:
-            Icon(Icons.arrow_forward_ios, color: Colors.white54, size: 16),
-        onTap: () {}, // TODO: implement navigation or action
+        contentPadding: EdgeInsets.zero,
+        title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 16)),
+        subtitle: Text(subtitle, style: const TextStyle(color: Colors.white54, fontSize: 14)),
+        trailing: const Icon(Icons.arrow_forward_ios, color: Colors.white24, size: 16),
       );
 
-  /// Reusable switch tile for boolean preferences.
-  /// Currently uses a fixed `value` and no state management.
   Widget _switchTile(String title, bool value) => SwitchListTile(
-        title: Text(title, style: TextStyle(color: Colors.white)),
+        contentPadding: EdgeInsets.zero,
+        activeColor: const Color(0xFF2EE07D),
+        title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 16)),
         value: value,
-        onChanged: (_) {}, // TODO: wire to a stateful value or provider
+        onChanged: (val) {},
       );
 }
